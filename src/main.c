@@ -1,58 +1,133 @@
 #include <SDL2/SDL.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include "graph.h"
+#include <SDL2/SDL_ttf.h>
+
+
+#include "structure.h"
 #include "graphDisplay.h"
+#include "nodes_Edges.h"
 
-int main() {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window *window = SDL_CreateWindow("Graphe 3D", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, 0);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+#define bool int
+#define true 1
+#define false 0
 
-    Graph *graph = createSampleGraph(); // À implémenter ou charger
-    Vec3D *positions3D = malloc(sizeof(Vec3D) * graph->numNodes);
-    calculate3DPositions(graph, positions3D, 150);
+int main(int argc, char *argv[]) {
+	srand(time(NULL));
 
-    RotationState rotation = {0, 0, 0, 0, 0};
-    int quit = 0;
-    SDL_Event e;
+	SDL_Window *win = NULL;
+	SDL_Renderer *renderer = NULL;
+	// TTF_Font *font[3];
+	TTF_Font *font_1;
+	TTF_Font *font_2;
 
-    while (!quit) {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) quit = 1;
+	if (initialisation_SDL2(&win, &renderer, &font_1, &font_2) == -1) {
+		printf("Erreur d'initialisation\n");
+	}
 
-            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
-                rotation.rotating = 1;
-                rotation.lastX = e.button.x;
-                rotation.lastY = e.button.y;
-            }
 
-            if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
-                rotation.rotating = 0;
-            }
+	int numDomeNodes = 10;
+	int numResearchStationNodes = 3*numDomeNodes;
+	int numDepotNodes = 2*numDomeNodes;
+	int numNodes = numDomeNodes + numResearchStationNodes + numDepotNodes;
+	int tabNumNodes[4] = {numDomeNodes, numResearchStationNodes, numDepotNodes, numNodes};
+	int numEdges = numNodes*3/2;
 
-            if (e.type == SDL_MOUSEMOTION && rotation.rotating) {
-                int dx = e.motion.x - rotation.lastX;
-                int dy = e.motion.y - rotation.lastY;
-                rotation.theta += dx * 0.01;
-                rotation.phi += dy * 0.01;
-                rotation.lastX = e.motion.x;
-                rotation.lastY = e.motion.y;
-            }
-        }
+	Node *nodes = NULL;
+	Edge *edges = NULL;
 
-        SDL_SetRenderDrawColor(renderer, 20, 20, 30, 255);
-        SDL_RenderClear(renderer);
+	/*
+	if (initialisationNodesEdges(&nodes, numNodes, &edges, numEdges)== -1){
+		fprintf(stderr,"Erreur d'initialisation\n");
+	}
+*/
+	initialisationNodesEdges(&nodes, tabNumNodes, &edges, numEdges);
 
-        SDL_SetRenderDrawColor(renderer, 200, 200, 255, 255);
-        drawGraph3D(renderer, graph, positions3D, rotation);
+	int **adjMatrix = (int**) malloc(numNodes * sizeof(int*));
+	for (int i = 0; i < numNodes; i++) {
+		adjMatrix[i] = (int*) malloc(numNodes * sizeof(int));
+	}
 
-        SDL_RenderPresent(renderer);
-        SDL_Delay(16);
-    }
+    // Construire la matrice d'adjacence
+    buildAdjacencyMatrix(adjMatrix, numNodes, edges, numEdges);
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-    return 0;
+    // Tableaux pour stocker les distances et les prédécesseurs
+    int* dist = (int*)malloc(numNodes * sizeof(int));
+    int* prev = (int*)malloc(numNodes * sizeof(int));
+
+    // Appliquer l'algorithme de Dijkstra
+    dijkstra(adjMatrix, numNodes, dist, prev);
+
+    // Afficher les plus courts chemins
+    printShortestPaths(dist, prev, numNodes, nodes);
+
+
+	int quit = 0;
+	SDL_Event e;
+	bool dragging = false;
+	Node *draggedNode = NULL;
+	int mouseX;
+	int mouseY;
+
+	while (!quit) {
+		while (SDL_PollEvent(&e) != 0) {
+			if (e.type == SDL_QUIT) {
+				quit = 1;
+			} else if (e.type == SDL_MOUSEBUTTONDOWN) {
+				if (e.button.button == SDL_BUTTON_LEFT) {
+					mouseX = e.button.x;
+					mouseY = e.button.y;
+					for (int i = 0; i < numNodes; i++) {
+						if (isPointInNode(mouseX, mouseY, &nodes[i])) {
+							nodes[i].isDragging = true;
+							draggedNode = &nodes[i];
+							dragging = true;
+							break;
+						}
+					}
+				}
+			} else if (e.type == SDL_MOUSEBUTTONUP) {
+				if (e.button.button == SDL_BUTTON_LEFT && dragging) {
+					if (draggedNode != NULL) {
+						draggedNode->isDragging = false;
+						draggedNode = NULL;
+					}
+					dragging = false;
+				}
+			} else if (e.type == SDL_MOUSEMOTION && dragging) {
+				if (draggedNode != NULL) {
+					draggedNode->x = e.motion.x;
+					draggedNode->y = e.motion.y;
+				}
+			}
+		}
+
+		// Appliquer l'algorithme de Force-Directed
+		applyForceDirectedLayout(nodes, numNodes, numDomeNodes, edges, numEdges);
+
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+		SDL_RenderClear(renderer);
+
+		// Dessiner les arêtes
+		for (int i = 0; i < numEdges; i++) {
+			drawEdge(renderer, &edges[i]);
+		}
+
+		// Dessiner les nœuds
+		for (int i = 0; i < numNodes; i++) {
+			drawNode(renderer, &nodes[i], font_1,font_2);
+		}
+
+		SDL_RenderPresent(renderer);
+		SDL_Delay(16); // Limiter la fréquence de rafraîchissement
+	}
+
+	free(nodes);
+	free(edges);
+	TTF_CloseFont(font_1);
+	TTF_CloseFont(font_2);
+	TTF_Quit();
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(win);
+	SDL_Quit();
+
+	return 0;
 }
