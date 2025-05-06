@@ -1,133 +1,108 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_opengl.h>
+// #include <GL/glut.h> // Pour glutSolidSphere
 
 
-#include "structure.h"
-#include "graphDisplay.h"
-#include "nodes_Edges.h"
+//#include <OpenGL/gl.h>
 
-#define bool int
-#define true 1
-#define false 0
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <GLUT/glut.h>
+#include <OpenGL/glu.h>
+#else
+#include <GL/gl.h>
+#include <GL/glut.h>
+#include <GL/glu.h>  // Pour gluPerspective
+#endif
+
+#include <math.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+
+#include "display.h"
+#include "models.h"
+#include "structures.h"
 
 int main(int argc, char *argv[]) {
-	srand(time(NULL));
 
-	SDL_Window *win = NULL;
-	SDL_Renderer *renderer = NULL;
-	// TTF_Font *font[3];
-	TTF_Font *font_1;
-	TTF_Font *font_2;
+	Display display = { 5, 0, 0, 0, 0, 0 };
 
-	if (initialisation_SDL2(&win, &renderer, &font_1, &font_2) == -1) {
-		printf("Erreur d'initialisation\n");
+	int numDomes = 5; // Exemple de nombre de dômes
+	Node nodes[100]; // Tableau pour stocker tous les nœuds
+	generateNodes(nodes, numDomes);
+
+	Edge edges[200]; // Tableau pour stocker toutes les arêtes
+	int numEdges = 0;
+	connectNodes(nodes, numDomes, edges, &numEdges);
+
+	int totalNodes = numDomes + (3 * numDomes) / 2 + (3 * numDomes) / 2;
+	int **adjMatrix = (int**) malloc(totalNodes * sizeof(int*));
+	for (int i = 0; i < totalNodes; i++) {
+		adjMatrix[i] = (int*) malloc(totalNodes * sizeof(int));
 	}
 
+	buildAdjacencyMatrix(adjMatrix, totalNodes, edges, numEdges);
 
-	int numDomeNodes = 10;
-	int numResearchStationNodes = 3*numDomeNodes;
-	int numDepotNodes = 2*numDomeNodes;
-	int numNodes = numDomeNodes + numResearchStationNodes + numDepotNodes;
-	int tabNumNodes[4] = {numDomeNodes, numResearchStationNodes, numDepotNodes, numNodes};
-	int numEdges = numNodes*3/2;
+	float *dist = (float*) malloc(totalNodes * sizeof(float));
+	int *prev = (int*) malloc(totalNodes * sizeof(int));
 
-	Node *nodes = NULL;
-	Edge *edges = NULL;
+	dijkstra(adjMatrix, totalNodes, dist, prev);
 
-	/*
-	if (initialisationNodesEdges(&nodes, numNodes, &edges, numEdges)== -1){
-		fprintf(stderr,"Erreur d'initialisation\n");
+	printShortestPaths(dist, prev, totalNodes, nodes);
+	fflush(stdout);
+	for (int i = 0; i < totalNodes; i++) {
+		free(adjMatrix[i]);
 	}
-*/
-	initialisationNodesEdges(&nodes, tabNumNodes, &edges, numEdges);
+	free(adjMatrix);
+	free(dist);
+	free(prev);
 
-	int **adjMatrix = (int**) malloc(numNodes * sizeof(int*));
-	for (int i = 0; i < numNodes; i++) {
-		adjMatrix[i] = (int*) malloc(numNodes * sizeof(int));
-	}
+	// Initialiser GLUT
+	int glut_argc = 1;
+	char *glut_argv[] = { (char*) "GLUT", NULL };
+	glutInit(&glut_argc, glut_argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 
-    // Construire la matrice d'adjacence
-    buildAdjacencyMatrix(adjMatrix, numNodes, edges, numEdges);
+	// Initialiser SDL
+	SDL_Init(SDL_INIT_VIDEO);
+	SDL_Window *window = SDL_CreateWindow("Planète 3D", SDL_WINDOWPOS_CENTERED,
+	SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL);
+	SDL_GLContext glContext = SDL_GL_CreateContext(window);
 
-    // Tableaux pour stocker les distances et les prédécesseurs
-    int* dist = (int*)malloc(numNodes * sizeof(int));
-    int* prev = (int*)malloc(numNodes * sizeof(int));
+	glEnable(GL_DEPTH_TEST);
+	glMatrixMode(GL_PROJECTION);
+	gluPerspective(45.0, 800.0 / 600.0, 1.0, 20.0);
+	glMatrixMode(GL_MODELVIEW);
 
-    // Appliquer l'algorithme de Dijkstra
-    dijkstra(adjMatrix, numNodes, dist, prev);
+	int running = 1;
+	SDL_Event event;
+	while (running) {
+		handleEvents(&event, &display);
 
-    // Afficher les plus courts chemins
-    printShortestPaths(dist, prev, numNodes, nodes);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glLoadIdentity();
+		glTranslatef(0.0f, 0.0f, -display.zoom);
+		glRotatef(display.rotX, 1.0f, 0.0f, 0.0f);
+		glRotatef(display.rotY, 0.0f, 1.0f, 0.0f);
 
-
-	int quit = 0;
-	SDL_Event e;
-	bool dragging = false;
-	Node *draggedNode = NULL;
-	int mouseX;
-	int mouseY;
-
-	while (!quit) {
-		while (SDL_PollEvent(&e) != 0) {
-			if (e.type == SDL_QUIT) {
-				quit = 1;
-			} else if (e.type == SDL_MOUSEBUTTONDOWN) {
-				if (e.button.button == SDL_BUTTON_LEFT) {
-					mouseX = e.button.x;
-					mouseY = e.button.y;
-					for (int i = 0; i < numNodes; i++) {
-						if (isPointInNode(mouseX, mouseY, &nodes[i])) {
-							nodes[i].isDragging = true;
-							draggedNode = &nodes[i];
-							dragging = true;
-							break;
-						}
-					}
-				}
-			} else if (e.type == SDL_MOUSEBUTTONUP) {
-				if (e.button.button == SDL_BUTTON_LEFT && dragging) {
-					if (draggedNode != NULL) {
-						draggedNode->isDragging = false;
-						draggedNode = NULL;
-					}
-					dragging = false;
-				}
-			} else if (e.type == SDL_MOUSEMOTION && dragging) {
-				if (draggedNode != NULL) {
-					draggedNode->x = e.motion.x;
-					draggedNode->y = e.motion.y;
-				}
-			}
+		drawSphere(1.0f, 30, 30);
+		for (int i = 0; i < totalNodes; i++) {
+			drawNode(&nodes[i]);
 		}
 
-		// Appliquer l'algorithme de Force-Directed
-		applyForceDirectedLayout(nodes, numNodes, numDomeNodes, edges, numEdges);
-
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-		SDL_RenderClear(renderer);
-
-		// Dessiner les arêtes
+		// Dessiner les routes après la planète
 		for (int i = 0; i < numEdges; i++) {
-			drawEdge(renderer, &edges[i]);
+			drawEdge(&edges[i], 100); // Utiliser 100 segments pour une courbe lisse
 		}
 
-		// Dessiner les nœuds
-		for (int i = 0; i < numNodes; i++) {
-			drawNode(renderer, &nodes[i], font_1,font_2);
-		}
-
-		SDL_RenderPresent(renderer);
-		SDL_Delay(16); // Limiter la fréquence de rafraîchissement
+		SDL_GL_SwapWindow(window);
 	}
 
-	free(nodes);
-	free(edges);
-	TTF_CloseFont(font_1);
-	TTF_CloseFont(font_2);
-	TTF_Quit();
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(win);
+	SDL_GL_DeleteContext(glContext);
+	SDL_DestroyWindow(window);
 	SDL_Quit();
 
 	return 0;
 }
+
