@@ -1,10 +1,3 @@
-/*
- * structures.h
- *
- *  Created on: 4 mai 2025
- *      Author: yves
- */
-
 #ifndef STRUCTURES_H_
 #define STRUCTURES_H_
 
@@ -19,13 +12,10 @@
 #define WINDOW_WIDTH 1200
 #define WINDOW_HEIGHT 800
 
-/*#define bool int
-#define true 1
-#define false 0*/
-
 #define INF 999999
 
-#define SPHERE_RADIUS 1.0f // Définir le rayon de la sphère
+// le rayon de la sphère
+#define SPHERE_RADIUS 100.0f
 
 
 typedef enum {
@@ -41,7 +31,8 @@ typedef struct {
 	char *name;
 	Infrastructure infrastructure;
 	float radius;
-	int index; // Ajout de l'index pour identifier les nœuds
+	// Ajout de l'index pour identifier les nœuds
+	int index;
 } Node;
 
 typedef struct {
@@ -61,4 +52,4 @@ typedef struct {
 	int mouseDown;
 } Display;
 
-#endif /* STRUCTURES_H_ */
+#endif

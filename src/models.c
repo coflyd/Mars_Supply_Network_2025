@@ -1,10 +1,3 @@
-/*
- * models.c
- *
- *  Created on: 5 mai 2025
- *      Author: yves
- */
-
 #include "structures.h"
 
 void generateNodes(Node nodes[], int numDomes) {
@@ -19,7 +12,6 @@ void generateNodes(Node nodes[], int numDomes) {
 		nodes[i].x = sin(phi) * cos(theta);
 		nodes[i].y = sin(phi) * sin(theta);
 		nodes[i].z = cos(phi);
-		// nodes[i].name = "City"; // Vous pouvez personnaliser les noms des cités
 		nodes[i].index = i; // Ajout de l'index pour identifier les nœuds
 
 		if (i == 0) {
@@ -43,6 +35,127 @@ void generateNodes(Node nodes[], int numDomes) {
 	}
 }
 
+
+void connectNodes(Node nodes[], int numDomes, Edge edges[], int *numEdges) {
+	int numResearchStations = (3 * numDomes) / 2;
+	int numSupplyDepots = (3 * numDomes) / 2;
+
+	// Relier chaque dôme aux dômes les plus proches sans créer de routes qui se coupent
+	for (int i = 1; i < numDomes; i++) {
+		float minDist = INFINITY;
+		int closestDomeIndex = -1;
+		for (int j = 0; j < numDomes; j++) {
+			if (i == j)
+				continue; // Ne pas relier un dôme à lui-même
+			float dx = nodes[i].x - nodes[j].x;
+			float dy = nodes[i].y - nodes[j].y;
+			float dz = nodes[i].z - nodes[j].z;
+			float dist = sqrt(dx * dx + dy * dy + dz * dz);
+			if (dist < minDist) {
+				minDist = dist;
+				closestDomeIndex = j;
+			}
+		}
+		if (closestDomeIndex != -1) {
+			edges[*numEdges] = (Edge ) { &nodes[i], &nodes[closestDomeIndex],
+							1.0f, FUNCTIONAL, 1.0f };
+			(*numEdges)++;
+		}
+	}
+
+	// Relier les stations de recherche et les dépôts aux dômes les plus proches
+	for (int i = numDomes; i < numDomes + numResearchStations + numSupplyDepots;
+			i++) {
+		float minDist = INFINITY;
+		int closestDomeIndex = -1;
+		for (int j = 0; j < numDomes; j++) {
+			float dx = nodes[i].x - nodes[j].x;
+			float dy = nodes[i].y - nodes[j].y;
+			float dz = nodes[i].z - nodes[j].z;
+			float dist = sqrt(dx * dx + dy * dy + dz * dz);
+			if (dist < minDist) {
+				minDist = dist;
+				closestDomeIndex = j;
+			}
+		}
+		if (closestDomeIndex != -1) {
+			edges[*numEdges] = (Edge ) { &nodes[i], &nodes[closestDomeIndex],
+							1.0f, FUNCTIONAL, 1.0f };
+			(*numEdges)++;
+		}
+	}
+
+	// Vérifier la connexité du graphe uniquement entre les dômes
+	bool *visited = (bool*) malloc(numDomes * sizeof(bool));
+	for (int i = 0; i < numDomes; i++) {
+		visited[i] = false;
+	}
+
+	// Utiliser un parcours en largeur (BFS) pour vérifier la connexité
+	int queue[numDomes];
+	int front = 0, rear = 0;
+	queue[rear++] = 0; // Commencer par le dôme principal
+	visited[0] = true;
+
+	while (front < rear) {
+		int current = queue[front++];
+		for (int i = 0; i < *numEdges; i++) {
+			if ((edges[i].start == &nodes[current]
+					|| edges[i].end == &nodes[current])
+					&& edges[i].start->infrastructure == DOME
+					&& edges[i].end->infrastructure == DOME) {
+				Node *neighbor =
+						(edges[i].start == &nodes[current]) ?
+								edges[i].end : edges[i].start;
+				int neighborIndex = neighbor - nodes;
+				if (!visited[neighborIndex]) {
+					visited[neighborIndex] = true;
+					queue[rear++] = neighborIndex;
+				}
+			}
+		}
+	}
+
+	// Si des dômes ne sont pas visités, les relier au dôme principal
+	for (int i = 0; i < numDomes; i++) {
+		if (!visited[i]) {
+			edges[*numEdges] = (Edge ) { &nodes[i], &nodes[0], 1.0f, FUNCTIONAL,
+							1.0f };
+			(*numEdges)++;
+		}
+	}
+
+	free(visited);
+
+	// Attribuer des états aux routes selon la répartition souhaitée
+	int totalEdges = *numEdges;
+	int functionalCount = (int) (0.5 * totalEdges);
+	int damageCount = (int) (0.3 * totalEdges);
+	int  destroyedCount = totalEdges - functionalCount - damageCount;
+
+	for (int i = 0; i < totalEdges; i++) {
+		edges[i].condition = FUNCTIONAL;
+	}
+	int i =0;
+	while(i<damageCount){
+		int r = rand()%totalEdges;
+		if (edges[r].condition == FUNCTIONAL){
+			edges[r].condition = DAMAGE;
+			i +=1;
+		}
+	}
+
+	i =0;
+	while(i<destroyedCount){
+		int r = rand()%totalEdges;
+		if (edges[r].condition == FUNCTIONAL){
+			edges[r].condition = DESTROYED;
+			i +=1;
+		}
+	}
+}
+
+
 // Fonction pour calculer la distance géodésique entre deux points sur la sphère
 float geodesicDistance(Node *a, Node *b) {
 	// Calculer le produit scalaire des vecteurs a et b
@@ -64,61 +177,88 @@ void buildAdjacencyMatrix(int **adjMatrix, int numNodes, Edge *edges,
 	// Initialiser la matrice d'adjacence avec des valeurs infinies
 	for (int i = 0; i < numNodes; i++) {
 		for (int j = 0; j < numNodes; j++) {
-			adjMatrix[i][j] = INF;
+			adjMatrix[i][j] = 0;
 		}
 	}
-
-	// Remplir la matrice d'adjacence avec les poids des arêtes
+	// Remplir la matrice d'adjacence
 	for (int i = 0; i < numEdges; i++) {
 		int fromIndex = edges[i].start->index;
 		int toIndex = edges[i].end->index;
-		float distance = geodesicDistance(edges[i].start, edges[i].end);
-		if (edges[i].condition == FUNCTIONAL) {
-			adjMatrix[fromIndex][toIndex] = distance;
-			adjMatrix[toIndex][fromIndex] = distance;
-		} else if (edges[i].condition == DAMAGE) {
-			adjMatrix[fromIndex][toIndex] = 2 * distance;
-			adjMatrix[toIndex][fromIndex] = 2 * distance;
+		if (edges[i].condition != DESTROYED) {
+			adjMatrix[fromIndex][toIndex] = 1;
+			adjMatrix[toIndex][fromIndex] = 1;
 		}
 	}
 }
 
-// Fonction pour appliquer l'algorithme de Dijkstra
-void dijkstra(int **adjMatrix, int numNodes, float *dist, int *prev) {
-	int *visited = (int*) malloc(numNodes * sizeof(int));
-	for (int i = 0; i < numNodes; i++) {
-		dist[i] = INF;
-		prev[i] = -1;
-		visited[i] = 0;
-	}
-	dist[0] = 0; // Distance du sommet d'indice 0 à lui-même est 0
 
-	for (int count = 0; count < numNodes - 1; count++) {
-		int u = -1;
-		// Trouver le sommet non visité avec la distance minimale
-		for (int i = 0; i < numNodes; i++) {
-			if (!visited[i] && (u == -1 || dist[i] < dist[u])) {
-				u = i;
-			}
+int getEdgeIndexbetween2Nodes(int nodeIndexStart, int nodeIndexEnd, Edge *edge,
+		int numEdges) {
+	for (int i = 0; i < numEdges; i++) {
+		while (!((edge[i].start->index == nodeIndexStart
+				&& edge[i].end->index == nodeIndexEnd)
+				|| (edge[i].start->index == nodeIndexEnd
+						&& edge[i].end->index == nodeIndexStart))) {
+			i += 1;
 		}
-
-		visited[u] = 1;
-
-		// Mettre à jour les distances des sommets adjacents
-		for (int v = 0; v < numNodes; v++) {
-			if (adjMatrix[u][v] != INF && !visited[v]) {
-				int newDist = dist[u] + adjMatrix[u][v];
-				if (newDist < dist[v]) {
-					dist[v] = newDist;
-					prev[v] = u;
-				}
-			}
+		if (i < numEdges) {
+			return (i);
 		}
 	}
-
-	free(visited);
+	return (-1);
 }
 
+
+void dijkstra(int **adjMatrix, int numNodes, float *dist, int *prev, Edge *edges, int numEdges) {
+    int *visited = (int *)malloc(numNodes * sizeof(int));
+    for (int i = 0; i < numNodes; i++) {
+        dist[i] = INF;
+        prev[i] = -1;
+        visited[i] = 0;
+    }
+    dist[0] = 0; // Distance from node 0 to itself is 0
+
+    for (int count = 0; count < numNodes - 1; count++) {
+        int u = -1;
+        // Find the unvisited node with the smallest distance
+        for (int i = 0; i < numNodes; i++) {
+            if (!visited[i] && (u == -1 || dist[i] < dist[u])) {
+                u = i;
+            }
+        }
+        visited[u] = 1;
+        // Update the distances of the adjacent nodes
+        for (int v = 0; v < numNodes; v++) {
+        	// printf("adjMatrix[%d][%d] = %d\n", u, v, adjMatrix[u][v]);
+            if (adjMatrix[u][v] != 0 && !visited[v]) {
+                float newDist = dist[u];
+                for (int i = 0; i < numEdges; i++) {
+                    if (  (edges[i].start->index == u && edges[i].end->index == v) ||
+                        (edges[i].start->index == v && edges[i].end->index == u)) {
+                    	// printf("dist géo edge %d : %f\n",i, geodesicDistance(edges[i].start, edges[i].end));
+                        if (edges[i].condition == FUNCTIONAL) {
+                            newDist +=geodesicDistance(edges[i].start, edges[i].end);
+                        } else if (edges[i].condition == DAMAGE) {
+                            newDist += 2 * geodesicDistance(edges[i].start, edges[i].end);
+                        }else{
+                        	newDist = INF;
+                        }
+                        // printf("New dist : %f <?  dist[v] : %f\n", newDist, dist[v]);
+                        break;
+                    }
+                }
+
+                if (newDist < dist[v]) {
+                	// printf("New dist node %d :: %f <!  dist[v] : %f\n",v,  newDist, dist[v]);
+                    dist[v] = newDist;
+                    prev[v] = u;
+
+                }
+            }
+        }
+    }
+    free(visited);
+}
 // Fonction pour afficher les plus courts chemins
 void printShortestPaths(float *dist, int *prev, int numNodes, Node *nodes) {
 	printf("Plus courts chemins depuis le sommet 0:\n");
@@ -127,7 +267,7 @@ void printShortestPaths(float *dist, int *prev, int numNodes, Node *nodes) {
 			printf("Sommet %d (%s): Non atteignable\n", nodes[i].index,
 					nodes[i].name);
 		} else {
-			printf("Sommet %d (%s): Distance = %f, Chemin = ", nodes[i].index,
+			printf("Sommet %d (%s): Distance = %.2f, Chemin = ", nodes[i].index,
 					nodes[i].name, dist[i]);
 			int j = i;
 			while (j != -1) {
@@ -138,4 +278,3 @@ void printShortestPaths(float *dist, int *prev, int numNodes, Node *nodes) {
 		}
 	}
 }
-

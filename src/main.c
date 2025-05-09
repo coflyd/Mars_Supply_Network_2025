@@ -1,20 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
-// #include <GL/glut.h> // Pour glutSolidSphere
-
-
-//#include <OpenGL/gl.h>
-
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#include <GLUT/glut.h>
-#include <OpenGL/glu.h>
-#else
-#include <GL/gl.h>
-#include <GL/glut.h>
-#include <GL/glu.h>  // Pour gluPerspective
-#endif
-
+#include <GL/glu.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,18 +11,18 @@
 #include "structures.h"
 
 int main(int argc, char *argv[]) {
-
 	Display display = { 5, 0, 0, 0, 0, 0 };
 
-	int numDomes = 5; // Exemple de nombre de dômes
-	Node nodes[100]; // Tableau pour stocker tous les nœuds
+	int numDomes = 5;
+	Node nodes[100];
 	generateNodes(nodes, numDomes);
 
-	Edge edges[200]; // Tableau pour stocker toutes les arêtes
+	Edge edges[200];
 	int numEdges = 0;
 	connectNodes(nodes, numDomes, edges, &numEdges);
 
 	int totalNodes = numDomes + (3 * numDomes) / 2 + (3 * numDomes) / 2;
+
 	int **adjMatrix = (int**) malloc(totalNodes * sizeof(int*));
 	for (int i = 0; i < totalNodes; i++) {
 		adjMatrix[i] = (int*) malloc(totalNodes * sizeof(int));
@@ -47,10 +33,9 @@ int main(int argc, char *argv[]) {
 	float *dist = (float*) malloc(totalNodes * sizeof(float));
 	int *prev = (int*) malloc(totalNodes * sizeof(int));
 
-	dijkstra(adjMatrix, totalNodes, dist, prev);
-
+	dijkstra(adjMatrix, totalNodes, dist, prev, edges, numEdges);
 	printShortestPaths(dist, prev, totalNodes, nodes);
-	fflush(stdout);
+
 	for (int i = 0; i < totalNodes; i++) {
 		free(adjMatrix[i]);
 	}
@@ -58,15 +43,8 @@ int main(int argc, char *argv[]) {
 	free(dist);
 	free(prev);
 
-	// Initialiser GLUT
-	int glut_argc = 1;
-	char *glut_argv[] = { (char*) "GLUT", NULL };
-	glutInit(&glut_argc, glut_argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-
-	// Initialiser SDL
 	SDL_Init(SDL_INIT_VIDEO);
-	SDL_Window *window = SDL_CreateWindow("Planète 3D", SDL_WINDOWPOS_CENTERED,
+	SDL_Window *window = SDL_CreateWindow("PlanÃ¨te 3D", SDL_WINDOWPOS_CENTERED,
 	SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL);
 	SDL_GLContext glContext = SDL_GL_CreateContext(window);
 
@@ -90,10 +68,8 @@ int main(int argc, char *argv[]) {
 		for (int i = 0; i < totalNodes; i++) {
 			drawNode(&nodes[i]);
 		}
-
-		// Dessiner les routes après la planète
 		for (int i = 0; i < numEdges; i++) {
-			drawEdge(&edges[i], 100); // Utiliser 100 segments pour une courbe lisse
+			drawEdge(&edges[i], 100);
 		}
 
 		SDL_GL_SwapWindow(window);
@@ -102,7 +78,5 @@ int main(int argc, char *argv[]) {
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
-
 	return 0;
 }
-
