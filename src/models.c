@@ -12,6 +12,7 @@ void generateNodes(Node nodes[], int numDomes) {
 		nodes[i].x = sin(phi) * cos(theta);
 		nodes[i].y = sin(phi) * sin(theta);
 		nodes[i].z = cos(phi);
+		// nodes[i].name = "City"; // Vous pouvez personnaliser les noms des cités
 		nodes[i].index = i; // Ajout de l'index pour identifier les nœuds
 
 		if (i == 0) {
@@ -155,7 +156,6 @@ void connectNodes(Node nodes[], int numDomes, Edge edges[], int *numEdges) {
 	}
 }
 
-
 // Fonction pour calculer la distance géodésique entre deux points sur la sphère
 float geodesicDistance(Node *a, Node *b) {
 	// Calculer le produit scalaire des vecteurs a et b
@@ -191,7 +191,6 @@ void buildAdjacencyMatrix(int **adjMatrix, int numNodes, Edge *edges,
 	}
 }
 
-
 int getEdgeIndexbetween2Nodes(int nodeIndexStart, int nodeIndexEnd, Edge *edge,
 		int numEdges) {
 	for (int i = 0; i < numEdges; i++) {
@@ -208,15 +207,17 @@ int getEdgeIndexbetween2Nodes(int nodeIndexStart, int nodeIndexEnd, Edge *edge,
 	return (-1);
 }
 
+// void dijkstra(int **adjMatrix, int numNodes, float *dist, int *prev, Edge *edges, int numEdges)
+void dijkstra(int **adjMatrix, int numNodes, float *dist, int *prev, Edge *edges, int numEdges, int start)
 
-void dijkstra(int **adjMatrix, int numNodes, float *dist, int *prev, Edge *edges, int numEdges) {
+{
     int *visited = (int *)malloc(numNodes * sizeof(int));
     for (int i = 0; i < numNodes; i++) {
         dist[i] = INF;
         prev[i] = -1;
         visited[i] = 0;
     }
-    dist[0] = 0; // Distance from node 0 to itself is 0
+    dist[start] = 0; // Distance from node 0 to itself is 0
 
     for (int count = 0; count < numNodes - 1; count++) {
         int u = -1;
@@ -277,4 +278,19 @@ void printShortestPaths(float *dist, int *prev, int numNodes, Node *nodes) {
 			printf("\n");
 		}
 	}
+}
+
+int buildShortestPathEdges(int *prev, int target, Edge *edges, int numEdges, Edge **shortestPath) {
+    int count = 0;
+    int current = target;
+
+    while (prev[current] != -1) {
+        int idx = getEdgeIndexbetween2Nodes(current, prev[current], edges, numEdges);
+        if (idx != -1) {
+            shortestPath[count++] = &edges[idx];
+        }
+        current = prev[current];
+    }
+
+    return count; // nombre d'arêtes dans le chemin
 }

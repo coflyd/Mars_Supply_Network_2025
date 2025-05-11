@@ -9,14 +9,15 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define WINDOW_WIDTH 1200
+#define WINDOW_WIDTH 1400
 #define WINDOW_HEIGHT 800
+
+#define MAX_EDGES 512
+#define MAX_NODES 128
 
 #define INF 999999
 
-// le rayon de la sphère
-#define SPHERE_RADIUS 100.0f
-
+#define SPHERE_RADIUS 100.0f // Définir le rayon de la sphère
 
 typedef enum {
 	DOME, RESEARCH_STATION, SUPPLY_DEPOT
@@ -27,12 +28,12 @@ typedef enum {
 } Condition;
 
 typedef struct {
+	int id;
 	float x, y, z;
 	char *name;
 	Infrastructure infrastructure;
 	float radius;
-	// Ajout de l'index pour identifier les nœuds
-	int index;
+	int index; // Ajout de l'index pour identifier les nœuds
 } Node;
 
 typedef struct {
@@ -51,5 +52,13 @@ typedef struct {
 	int lastY;
 	int mouseDown;
 } Display;
+
+
+typedef struct {
+    int selectedStart;
+    int selectedEnd;
+    int buttonHover;
+    int showPath;
+} UIState;
 
 #endif
