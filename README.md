@@ -64,4 +64,4 @@ Details in [docs/JOURNEY.md](docs/JOURNEY.md).
 
 Course project for **Graph Theory and Applications (INF2032)** at ESIEA, spring 2025.
 
-Developed by Constance Fleury, with the guidance of a private tutor during the original version (some v1.0 files keep their original `Author: yves` header). Refactoring and new features by Constance Fleury.
+Developed by Coflyd, with the guidance of a private tutor Yves during the original version (some v1.0 files keep their original `Author: yves` header). Refactoring and new features by Coflyd.
