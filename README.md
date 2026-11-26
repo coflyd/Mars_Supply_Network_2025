@@ -2,7 +2,7 @@
 
 > 3D logistics simulator for a Mars colony, written in C: graph algorithms on a planet-sized supply network, with a real-time graphical interface.
 
-**Status:** 🚧 refactoring in progress. The `main` branch currently holds the version submitted for the course (`v1.0-school-submission`, SDL2 + OpenGL). A cleaned-up version with all missions, tests and a **raylib** renderer is under way.
+**Status:** refactoring in progress. The `main` branch currently holds the version submitted for the course (`v1.0-school-submission`, SDL2 + OpenGL). A cleaned-up version with all missions, tests and a **raylib** renderer is under way.
 
 ## The scenario
 
@@ -17,7 +17,7 @@ A solar storm has damaged the routes between the domes, research stations and su
 |---|---|---|---|
 | 1. Route assessment | Reachability from the main dome | DFS | v1.0 (to be wired into the UI) |
 | 2. Supply zones | Connected components | DFS | v1.0, to be reworked |
-| 3. Optimal supply paths | Single-source shortest paths, rerouting | Dijkstra | ✅ interactive in 3D |
+| 3. Optimal supply paths | Single-source shortest paths, rerouting | Dijkstra | interactive in 3D |
 | 4. Critical route shielding | Minimum spanning tree | Reverse-delete | v1.0, to be fixed |
 | 5. Robot fleet allocation | Maximum flow with priorities | Edmonds-Karp | planned |
 | 6. Inspection scheduling | Graph coloring | DSatur | planned |
