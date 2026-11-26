@@ -1,0 +1,19 @@
+# Build output
+*.o
+*.d
+/build/
+/mars
+
+# Fonts are not redistributed (see data/README.md)
+/data/*.ttf
+/data/*.otf
+
+# IDE / OS
+.metadata/
+.settings/
+.project
+.cproject
+Debug/
+.vscode/
+.idea/
+.DS_Store
