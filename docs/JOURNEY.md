@@ -20,7 +20,7 @@ Porting to macOS on Apple Silicon: OpenGL and GLUT frameworks, `GL_SILENCE_DEPRE
 
 ## v1.0: missions and interface (May 9–11)
 
-The team's work is merged: a stack and matrix utilities, missions 1, 2 and 4, an inspection tour for the bonus, an overlay where the user selects a start and an end node, Dijkstra recomputed on demand with the path highlighted in 3D, TTF text rendered into OpenGL textures, and a 60 FPS frame limiter. This is the version submitted for the course.
+Everything comes together: a stack and matrix utilities, missions 1, 2 and 4, an inspection tour for the bonus, an overlay where the user selects a start and an end node, Dijkstra recomputed on demand with the path highlighted in 3D, TTF text rendered into OpenGL textures, and a 60 FPS frame limiter. This is the version submitted for the course.
 
 ## Known limitations of v1.0
 
